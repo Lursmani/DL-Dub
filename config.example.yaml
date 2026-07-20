@@ -1,0 +1,45 @@
+# Copy to config.yaml and edit. Passed via `--config config.yaml`.
+
+source_lang: nl        # spoken language in the source video
+target_lang: ka        # Georgian
+
+# --- Transcription (WhisperX) ---
+whisper_model: large-v3   # large-v3 = best; use "medium" on weak/CPU-only machines
+# device/compute_type are auto-detected (CUDA float16, else CPU int8). Override if needed:
+# device: cpu
+# compute_type: int8
+
+# --- Translation (Claude) ---
+translate_model: claude-sonnet-5
+# Georgian speaking rate used to budget line length so dubbed audio fits the slot.
+# Lower = the translator is pushed to write shorter lines.
+chars_per_second: 15
+
+# --- TTS (ElevenLabs) ---
+# Default model for lines whose speaker isn't listed below.
+#   eleven_flash_v2_5    -> 0.5 credits/char  (cheapest; test Georgian quality)
+#   eleven_multilingual_v2 -> 1 credit/char   (higher quality)
+#   eleven_v3            -> most expressive
+default_tts_model: eleven_flash_v2_5
+default_voice_id: REPLACE_WITH_A_VOICE_ID
+output_format: mp3_44100_128
+
+# Map diarization speaker labels -> a voice per character.
+# Run the pipeline up to the `transcribe` stage once; the labels (SPEAKER_00, ...)
+# appear in work/<episode>/manifest.json. Listen, identify each character, then fill in.
+# Unmapped speakers fall back to default_voice_id / default_tts_model.
+voices:
+  SPEAKER_00:
+    voice_id: REPLACE_WITH_A_VOICE_ID
+    model_id: eleven_multilingual_v2   # e.g. give the lead character the higher-quality model
+  SPEAKER_01:
+    voice_id: REPLACE_WITH_A_VOICE_ID
+    model_id: eleven_flash_v2_5
+
+# --- Assemble / mix ---
+# Gain applied to the music+SFX bed under the new dialogue, in dB (negative = quieter).
+background_gain_db: -3.0
+# Max time-stretch applied to make a dubbed clip fit its slot. 1.3 = allow up to 30%
+# speed-up before we just let it overflow (avoids chipmunk voices).
+max_speedup: 1.30
+min_slowdown: 0.75

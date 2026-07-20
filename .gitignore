@@ -1,0 +1,12 @@
+# secrets & machine-local config
+.env
+config.yaml
+
+# pipeline outputs / intermediates
+work/
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
