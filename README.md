@@ -18,6 +18,22 @@ video ──▶ extract ──▶ separate ──▶ transcribe ──▶ transl
 
 Only the **tts** stage spends money (per character). Everything else is free/local.
 
+## Project layout
+
+```
+input/     drop source videos here (e.g. input/episode.mp4)
+output/    a place to collect finished dubs
+work/      per-episode intermediates + the canonical result:
+             work/<episode>/<episode>.ka.mp4
+pipeline/  the pipeline stages (extract … mux)
+gui/       Gradio web app  (python -m gui)
+```
+
+`input/` and `output/` are tracked empty for structure; their contents are
+git-ignored so large media is never committed. The pipeline itself still reads
+the video path you pass it and writes results under `work/` — these folders are
+a convention for keeping sources and finished files tidy.
+
 ## The GUI (recommended)
 
 `gui/` is a Gradio web app that wraps the whole workflow as a 5-step wizard:

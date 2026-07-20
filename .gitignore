@@ -5,6 +5,12 @@ config.yaml
 # pipeline outputs / intermediates
 work/
 
+# input videos / finished dubs: keep the folders in git, ignore their (large) contents
+input/*
+!input/.gitkeep
+output/*
+!output/.gitkeep
+
 # python
 __pycache__/
 *.pyc
