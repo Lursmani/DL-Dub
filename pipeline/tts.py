@@ -23,8 +23,10 @@ def _rate(model: str) -> float:
     return _CREDITS.get(model, 1.0)
 
 
-def _hash(text: str, voice_id: str, model_id: str) -> str:
-    return hashlib.sha256(f"{model_id}|{voice_id}|{text}".encode()).hexdigest()[:16]
+def _hash(text: str, voice_id: str, model_id: str, fmt: str) -> str:
+    return hashlib.sha256(
+        f"{model_id}|{voice_id}|{fmt}|{text}".encode()
+    ).hexdigest()[:16]
 
 
 def estimate(manifest: Manifest, cfg: Config) -> dict:
@@ -55,10 +57,12 @@ def synth(video: Path, workdir: Path, manifest: Manifest, cfg: Config) -> None:
     todo = [s for s in manifest.segments if s.get("text_tgt")]
     for s in tqdm(todo, desc="[tts]"):
         voice_id, model_id = cfg.voice_for(s.get("speaker"))
-        if not voice_id:
-            raise SystemExit(f"[tts] no voice_id for speaker {s.get('speaker')} "
-                             "and no default_voice_id set.")
-        h = _hash(s["text_tgt"], voice_id, model_id)
+        if not voice_id or "REPLACE" in voice_id.upper():
+            raise SystemExit(
+                f"[tts] speaker {s.get('speaker')}: voice_id is unset or still a "
+                f"placeholder ({voice_id!r}) — set real ElevenLabs voice IDs in config.yaml."
+            )
+        h = _hash(s["text_tgt"], voice_id, model_id, cfg.output_format)
         clip = clips / f'{s["id"]:04d}_{h}.{ext}'
         if not clip.exists():
             audio = client.text_to_speech.convert(

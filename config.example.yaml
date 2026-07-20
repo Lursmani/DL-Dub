@@ -42,4 +42,6 @@ background_gain_db: -3.0
 # Max time-stretch applied to make a dubbed clip fit its slot. 1.3 = allow up to 30%
 # speed-up before we just let it overflow (avoids chipmunk voices).
 max_speedup: 1.30
-min_slowdown: 0.75
+# 1.0 = never slow speech down to fill a slot (short lines get natural silence).
+# Lower (e.g. 0.9) stretches short lines toward the slot length.
+min_slowdown: 1.0

@@ -17,13 +17,26 @@ def check_tool(name: str) -> None:
 
 
 def run(cmd: list[str], **kwargs: Any) -> subprocess.CompletedProcess:
-    """Run a subprocess, streaming errors, raising on failure."""
-    return subprocess.run([str(c) for c in cmd], check=True, **kwargs)
+    """Run a subprocess; on failure, surface its captured stderr before raising."""
+    try:
+        return subprocess.run([str(c) for c in cmd], check=True, **kwargs)
+    except subprocess.CalledProcessError as e:
+        err = e.stderr
+        if isinstance(err, bytes):
+            err = err.decode(errors="replace")
+        print(f"[run] command failed: {' '.join(str(c) for c in cmd)}")
+        if err:
+            print(err.strip())
+        raise
 
 
-def workdir_for(video: Path, root: Path = Path("work")) -> Path:
+# Anchor work/ to the repo root so results don't depend on the caller's cwd.
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+def workdir_for(video: Path, root: Path | None = None) -> Path:
     """One stable working directory per source video; stages read/write here."""
-    wd = root / video.stem
+    wd = (root if root is not None else _REPO_ROOT / "work") / video.stem
     (wd / "clips").mkdir(parents=True, exist_ok=True)
     return wd
 

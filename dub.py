@@ -58,6 +58,11 @@ def _run(args: argparse.Namespace) -> None:
     stop = STAGE_NAMES.index(args.stop_after) if args.stop_after else len(STAGES) - 1
 
     for name, fn in STAGES[start: stop + 1]:
+        # Re-running transcribe rebuilds segments and wipes translations; guard it.
+        if name == "transcribe" and manifest.segments and not args.force:
+            print("[transcribe] segments already exist — skipping. "
+                  "Use --force to redo (this discards existing translations).")
+            continue
         if name == "tts" and not args.yes:
             est = tts_estimate(manifest, cfg)
             if est["chars"] == 0:
@@ -92,6 +97,8 @@ def main() -> None:
     r.add_argument("--start-at", choices=STAGE_NAMES)
     r.add_argument("--stop-after", choices=STAGE_NAMES)
     r.add_argument("--yes", action="store_true", help="skip pre-spend confirmation")
+    r.add_argument("--force", action="store_true",
+                   help="redo stages that already have results (e.g. transcribe)")
     r.set_defaults(func=_run)
 
     e = sub.add_parser("estimate", help="preview TTS cost, no spend")

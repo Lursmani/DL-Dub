@@ -47,6 +47,11 @@ def translate(video: Path, workdir: Path, manifest: Manifest, cfg: Config) -> No
         system=_SYSTEM.format(src=cfg.source_lang, tgt=cfg.target_lang),
         messages=[{"role": "user", "content": user}],
     )
+    if msg.stop_reason == "max_tokens":
+        raise SystemExit(
+            "[translate] response truncated at max_tokens — too many lines for one "
+            "batch. Raise max_tokens in pipeline/translate.py or split the episode."
+        )
     text = "".join(b.text for b in msg.content if b.type == "text").strip()
     # Be tolerant of stray prose around the JSON.
     text = text[text.find("{"): text.rfind("}") + 1]
@@ -57,5 +62,12 @@ def translate(video: Path, workdir: Path, manifest: Manifest, cfg: Config) -> No
         seg = by_id.get(int(k))
         if seg is not None:
             seg["text_tgt"] = v.strip()
-    manifest.save()
+    manifest.save()  # save first: a re-run only re-requests the still-missing lines
+
+    missing = [s["id"] for s in todo if not s.get("text_tgt")]
+    if missing:
+        raise SystemExit(
+            f"[translate] model response was missing line ids {missing} — "
+            "translated lines were saved; re-run the translate stage to fill the rest."
+        )
     print(f"[translate] translated {len(mapping)} lines -> {cfg.target_lang}")

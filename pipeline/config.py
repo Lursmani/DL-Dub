@@ -37,7 +37,8 @@ class Config:
     voices: dict[str, dict[str, str]] = field(default_factory=dict)
     background_gain_db: float = -3.0
     max_speedup: float = 1.30
-    min_slowdown: float = 0.75
+    # 1.0 = never slow speech down to fill a slot; short lines get natural silence.
+    min_slowdown: float = 1.0
 
     # secrets (from .env)
     elevenlabs_key: str = ""
@@ -51,6 +52,10 @@ class Config:
         if config_path.exists():
             raw = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
 
+        unknown = [k for k in raw if k not in cls.__dataclass_fields__]
+        if unknown:
+            print(f"[config] ignoring unknown keys in {config_path.name}: {unknown} "
+                  "(typo?)")
         cfg = cls(**{k: v for k, v in raw.items() if k in cls.__dataclass_fields__})
         if not cfg.device or not cfg.compute_type:
             dev, ct = _auto_device()
