@@ -10,7 +10,7 @@ versus ~€22 for ElevenLabs' automatic Dubbing Studio.
 
 ```
 video ──▶ extract ──▶ separate ──▶ transcribe ──▶ translate ──▶ tts ──▶ assemble ──▶ mux ──▶ dubbed video
- (mp4)    (ffmpeg)    (Demucs)     (WhisperX +     (Claude       (Eleven   (fit + mix    (ffmpeg)
+ (mp4)    (ffmpeg)    (Demucs)     (WhisperX +     (LLM API      (Eleven   (fit + mix    (ffmpeg)
                      dialogue vs   diarization)    nl→ka,        Labs,     over music
                      music/SFX bed  per-speaker    length-       per char) bed)
                                     labels         budgeted)
@@ -70,7 +70,10 @@ cp .env.example .env            # fill in the 3 keys
 cp config.example.yaml config.yaml
 ```
 
-- **ELEVENLABS_API_KEY**, **ANTHROPIC_API_KEY** — from each dashboard.
+- **ELEVENLABS_API_KEY** — from the ElevenLabs dashboard.
+- One translation key: **ANTHROPIC_API_KEY**, **OPENAI_API_KEY**, or
+  **GOOGLE_API_KEY** — pick the provider in the GUI's Translate tab
+  (or `translate_provider` in config.yaml).
 - **HF_TOKEN** — a HuggingFace token, AND you must accept the license once (logged in) at
   [pyannote/speaker-diarization-3.1](https://hf.co/pyannote/speaker-diarization-3.1) and
   [pyannote/segmentation-3.0](https://hf.co/pyannote/segmentation-3.0), or diarization fails.

@@ -9,8 +9,12 @@ whisper_model: large-v3   # large-v3 = best; use "medium" on weak/CPU-only machi
 # device: cpu
 # compute_type: int8
 
-# --- Translation (Claude) ---
-translate_model: claude-sonnet-5
+# --- Translation ---
+# Provider: anthropic | openai | google. The matching key must be set in .env;
+# the GUI's Translate tab shows availability and lets you switch.
+translate_provider: anthropic
+# Blank = provider default (claude-sonnet-5 / gpt-5-mini / gemini-2.5-flash).
+translate_model: ""
 # Georgian speaking rate used to budget line length so dubbed audio fits the slot.
 # Lower = the translator is pushed to write shorter lines.
 chars_per_second: 15

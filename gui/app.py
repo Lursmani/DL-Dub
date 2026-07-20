@@ -13,6 +13,7 @@ from pathlib import Path
 import gradio as gr
 
 from pipeline.config import Config
+from pipeline.translate import PROVIDERS, available_providers, effective_model
 from pipeline.tts import estimate as tts_estimate
 from pipeline.util import Manifest, workdir_for
 
@@ -52,10 +53,16 @@ def _setup_report() -> str:
     lines = ["### Environment"]
     for label, ok in [
         ("ELEVENLABS_API_KEY", bool(cfg.elevenlabs_key)),
-        ("ANTHROPIC_API_KEY", bool(cfg.anthropic_key)),
         ("HF_TOKEN (diarization)", bool(cfg.hf_token)),
     ]:
         lines.append(f"- {label}: {'✅ set' if ok else '❌ MISSING (edit .env)'}")
+    avail = available_providers(cfg)
+    marks = " · ".join(
+        f"{PROVIDERS[p]['label']} {'✅' if ok else '❌'}"
+        for p, ok in avail.items())
+    lines.append(
+        f"- Translation APIs (need ≥1, pick in the Translate tab): {marks}"
+        + ("" if any(avail.values()) else " — **all missing, edit .env**"))
     for tool in ("ffmpeg", "demucs"):
         lines.append(f"- {tool}: "
                      f"{'✅ found' if shutil.which(tool) else '❌ not on PATH'}")
@@ -161,10 +168,18 @@ def build_app() -> gr.Blocks:
             with gr.Tab("4 · Translate & review", id="translate",
                         interactive=False) as tab_translate:
                 gr.Markdown(
-                    "Translate Dutch → Georgian (Claude, costs pennies), then edit "
-                    "any line below. Only the **Georgian** column is editable; "
-                    "edits save automatically. Lines you edit re-bill only "
-                    "themselves at dub time.")
+                    "Translate Dutch → Georgian with your chosen API (costs "
+                    "pennies), then edit any line below. Only the **Georgian** "
+                    "column is editable; edits save automatically. Lines you edit "
+                    "re-bill only themselves at dub time.")
+                with gr.Row():
+                    provider_dd = gr.Dropdown(
+                        label="Translation API", choices=[], scale=2,
+                        info="❌ = key missing from .env")
+                    model_tb = gr.Textbox(
+                        label="Model (blank = provider default)", scale=2)
+                    with gr.Column(scale=2):
+                        provider_md = gr.Markdown()
                 translate_btn = gr.Button("Translate untranslated lines",
                                           variant="primary")
                 translate_log = gr.Textbox(label="Log", lines=6, max_lines=6,
@@ -378,6 +393,49 @@ def build_app() -> gr.Blocks:
         )
 
         # --- Translate & review ---
+        def _provider_line(cfg: Config) -> str:
+            provider = (cfg.translate_provider or "anthropic").lower()
+            if provider not in PROVIDERS:
+                return f"⚠️ Unknown provider `{provider}` in config.yaml."
+            model = effective_model(provider, cfg.translate_model)
+            ok = available_providers(cfg).get(provider, False)
+            return (f"Using **{PROVIDERS[provider]['label']}** · `{model}`"
+                    + ("" if ok else
+                       f"<br>⚠️ `{PROVIDERS[provider]['env']}` is not set — "
+                       "translation will fail until you add it to .env "
+                       "(or Colab Secrets) and relaunch."))
+
+        def refresh_provider_ui():
+            cfg = Config.load(CONFIG_PATH)
+            avail = available_providers(cfg)
+            choices = [
+                (f"{PROVIDERS[p]['label']} {'✅' if avail[p] else '❌'}", p)
+                for p in PROVIDERS]
+            cur = ((cfg.translate_provider or "anthropic").lower()
+                   if (cfg.translate_provider or "").lower() in PROVIDERS
+                   else "anthropic")
+            return (gr.update(choices=choices, value=cur),
+                    gr.update(value=cfg.translate_model or ""),
+                    _provider_line(cfg))
+
+        def set_provider(provider: str, model: str):
+            model = (model or "").strip()
+            if model and effective_model(provider, model) != model:
+                model = ""  # stale model from another provider — clear it
+            Config.update_yaml(CONFIG_PATH, {
+                "translate_provider": provider,
+                "translate_model": model,
+            })
+            return (gr.update(value=model),
+                    _provider_line(Config.load(CONFIG_PATH)))
+
+        tab_translate.select(refresh_provider_ui,
+                             outputs=[provider_dd, model_tb, provider_md])
+        provider_dd.input(set_provider, inputs=[provider_dd, model_tb],
+                          outputs=[model_tb, provider_md])
+        model_tb.blur(set_provider, inputs=[provider_dd, model_tb],
+                      outputs=[model_tb, provider_md])
+
         def do_translate(video: str):
             n_out = 8  # log, df, totals, 4 tabs, button
             if not video:

@@ -29,7 +29,8 @@ class Config:
     whisper_model: str = "large-v3"
     device: str = ""
     compute_type: str = ""
-    translate_model: str = "claude-sonnet-5"
+    translate_provider: str = "google"  # anthropic | openai | google
+    translate_model: str = ""  # blank = provider default
     chars_per_second: float = 15.0
     default_tts_model: str = "eleven_flash_v2_5"
     default_voice_id: str = ""
@@ -43,6 +44,8 @@ class Config:
     # secrets (from .env)
     elevenlabs_key: str = ""
     anthropic_key: str = ""
+    openai_key: str = ""
+    google_key: str = ""
     hf_token: str = ""
 
     @classmethod
@@ -64,8 +67,18 @@ class Config:
 
         cfg.elevenlabs_key = os.environ.get("ELEVENLABS_API_KEY", "")
         cfg.anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
+        cfg.openai_key = os.environ.get("OPENAI_API_KEY", "")
+        cfg.google_key = os.environ.get("GOOGLE_API_KEY", "")
         cfg.hf_token = os.environ.get("HF_TOKEN", "")
         return cfg
+
+    def translate_key(self, provider: str) -> str:
+        """API key for a translation provider name ('' if unknown/unset)."""
+        return {
+            "anthropic": self.anthropic_key,
+            "openai": self.openai_key,
+            "google": self.google_key,
+        }.get(provider, "")
 
     @staticmethod
     def update_yaml(config_path: Path, updates: dict[str, Any]) -> None:

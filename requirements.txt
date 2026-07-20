@@ -10,8 +10,11 @@ demucs>=4.0.1
 # Georgian TTS
 elevenlabs>=1.0,<2
 
-# Translation (nl -> ka) via Claude
+# Translation (nl -> ka) — pick ONE provider in config/GUI; all three SDKs are
+# installed so switching never needs a reinstall (only the chosen one imports).
 anthropic>=0.40.0
+openai>=1.40.0
+google-genai>=1.0.0
 
 # Audio assembly / overlay / gain
 pydub>=0.25.1
