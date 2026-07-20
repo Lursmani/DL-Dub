@@ -8,10 +8,19 @@ from pathlib import Path
 from typing import Any
 
 
+class PipelineError(RuntimeError):
+    """A stage failed in an expected way (bad input, missing key/tool, API error).
+
+    Stages raise this instead of SystemExit: the GUI runs stages in a worker
+    thread, and Python threads silently swallow SystemExit — errors would look
+    like successful no-op runs. The CLI (dub.py) converts it back to SystemExit.
+    """
+
+
 def check_tool(name: str) -> None:
     """Fail fast with a clear message if a required CLI isn't on PATH."""
     if shutil.which(name) is None:
-        raise SystemExit(
+        raise PipelineError(
             f"Required tool '{name}' not found on PATH. See README setup section."
         )
 

@@ -26,7 +26,7 @@ from pipeline.transcribe import transcribe
 from pipeline.translate import translate
 from pipeline.tts import estimate as tts_estimate
 from pipeline.tts import synth
-from pipeline.util import Manifest, workdir_for
+from pipeline.util import Manifest, PipelineError, workdir_for
 
 STAGES = [
     ("extract", extract),
@@ -73,7 +73,12 @@ def _run(args: argparse.Namespace) -> None:
             )
             if ok.strip().lower() not in ("y", "yes"):
                 raise SystemExit("Aborted before spending.")
-        fn(video, workdir, manifest, cfg)
+        try:
+            fn(video, workdir, manifest, cfg)
+        except PipelineError as e:
+            # Stages raise PipelineError (thread-safe for the GUI); the CLI
+            # converts it to a clean exit instead of a traceback.
+            raise SystemExit(str(e)) from None
 
 
 def _estimate(args: argparse.Namespace) -> None:

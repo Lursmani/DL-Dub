@@ -67,6 +67,23 @@ class Config:
         cfg.hf_token = os.environ.get("HF_TOKEN", "")
         return cfg
 
+    @staticmethod
+    def update_yaml(config_path: Path, updates: dict[str, Any]) -> None:
+        """Merge updates into the YAML file (used by the GUI to persist choices).
+
+        Round-trips the raw dict — never the dataclass — so auto-detected
+        fields (device/compute_type) and secrets are never written to disk.
+        Note: hand-written comments in config.yaml are lost on rewrite.
+        """
+        raw: dict[str, Any] = {}
+        if config_path.exists():
+            raw = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+        raw.update(updates)
+        config_path.write_text(
+            yaml.safe_dump(raw, allow_unicode=True, sort_keys=False),
+            encoding="utf-8",
+        )
+
     def voice_for(self, speaker: str | None) -> tuple[str, str]:
         """(voice_id, model_id) for a diarization speaker label, with fallback."""
         entry = self.voices.get(speaker or "", {})

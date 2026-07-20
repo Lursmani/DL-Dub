@@ -8,7 +8,7 @@ whisperx>=3.1.1
 demucs>=4.0.1
 
 # Georgian TTS
-elevenlabs>=1.0.0
+elevenlabs>=1.0,<2
 
 # Translation (nl -> ka) via Claude
 anthropic>=0.40.0
@@ -22,3 +22,7 @@ audioop-lts; python_version >= "3.13"
 pyyaml>=6.0
 python-dotenv>=1.0.0
 tqdm>=4.66.0
+
+# Web GUI (gui/ package). 5.13+ needed for Dataframe static_columns.
+gradio>=5.13,<6
+pandas>=2.0

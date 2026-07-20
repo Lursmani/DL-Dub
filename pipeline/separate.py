@@ -9,7 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from .config import Config
-from .util import Manifest, check_tool, run
+from .util import Manifest, PipelineError, check_tool, run
 
 
 def separate(video: Path, workdir: Path, manifest: Manifest, cfg: Config) -> None:
@@ -26,7 +26,7 @@ def separate(video: Path, workdir: Path, manifest: Manifest, cfg: Config) -> Non
         # Demucs writes to <out_root>/<model>/<audio_stem>/{vocals,no_vocals}.wav
         produced = list(out_root.rglob("vocals.wav"))
         if not produced:
-            raise SystemExit("[separate] demucs produced no output — check its logs.")
+            raise PipelineError("[separate] demucs produced no output — check its logs.")
         stem_dir = produced[0].parent
         (stem_dir / "vocals.wav").replace(vocals)
         (stem_dir / "no_vocals.wav").replace(background)

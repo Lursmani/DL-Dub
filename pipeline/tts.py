@@ -12,7 +12,7 @@ from pathlib import Path
 from tqdm import tqdm
 
 from .config import Config
-from .util import Manifest
+from .util import Manifest, PipelineError
 
 # Credits per character by model, and $ per 1000 chars (API rates).
 _CREDITS = {"eleven_flash_v2_5": 0.5, "eleven_turbo_v2_5": 0.5}  # default 1.0 otherwise
@@ -23,10 +23,14 @@ def _rate(model: str) -> float:
     return _CREDITS.get(model, 1.0)
 
 
-def _hash(text: str, voice_id: str, model_id: str, fmt: str) -> str:
+def clip_hash(text: str, voice_id: str, model_id: str, fmt: str) -> str:
+    """Cache key for a synthesized clip. Also used by GUI voice previews."""
     return hashlib.sha256(
         f"{model_id}|{voice_id}|{fmt}|{text}".encode()
     ).hexdigest()[:16]
+
+
+_hash = clip_hash  # backwards-compat alias
 
 
 def estimate(manifest: Manifest, cfg: Config) -> dict:
@@ -48,7 +52,7 @@ def synth(video: Path, workdir: Path, manifest: Manifest, cfg: Config) -> None:
     from elevenlabs.client import ElevenLabs
 
     if not cfg.elevenlabs_key:
-        raise SystemExit("[tts] ELEVENLABS_API_KEY required (see .env.example).")
+        raise PipelineError("[tts] ELEVENLABS_API_KEY required (see .env.example).")
 
     client = ElevenLabs(api_key=cfg.elevenlabs_key)
     clips = workdir / "clips"
@@ -58,11 +62,11 @@ def synth(video: Path, workdir: Path, manifest: Manifest, cfg: Config) -> None:
     for s in tqdm(todo, desc="[tts]"):
         voice_id, model_id = cfg.voice_for(s.get("speaker"))
         if not voice_id or "REPLACE" in voice_id.upper():
-            raise SystemExit(
+            raise PipelineError(
                 f"[tts] speaker {s.get('speaker')}: voice_id is unset or still a "
                 f"placeholder ({voice_id!r}) — set real ElevenLabs voice IDs in config.yaml."
             )
-        h = _hash(s["text_tgt"], voice_id, model_id, cfg.output_format)
+        h = clip_hash(s["text_tgt"], voice_id, model_id, cfg.output_format)
         clip = clips / f'{s["id"]:04d}_{h}.{ext}'
         if not clip.exists():
             audio = client.text_to_speech.convert(

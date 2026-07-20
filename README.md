@@ -18,6 +18,26 @@ video ──▶ extract ──▶ separate ──▶ transcribe ──▶ transl
 
 Only the **tts** stage spends money (per character). Everything else is free/local.
 
+## The GUI (recommended)
+
+`gui/` is a Gradio web app that wraps the whole workflow as a 5-step wizard:
+**Setup → Analyze → Voices → Translate & review → Dub**. It runs the pipeline
+in-process and keeps `work/<episode>/manifest.json` as the single source of
+truth, so the GUI and CLI are fully interchangeable — you can start in one and
+finish in the other.
+
+- **In Colab (primary)**: the notebook's "Launch the GUI" cell prints a public
+  `*.gradio.live` link — open it in a new browser tab. If the link dies mid-run,
+  re-run the cell and click *Refresh from disk*; all progress is on disk.
+- **Locally**: `python -m gui` (add `--share` for a public link). Fine for the
+  Voices/Translate/Dub steps (they're API calls); Analyze runs on CPU locally.
+
+Highlights: per-speaker audio samples so you can hear who's who before picking
+voices; your ElevenLabs voice library in a dropdown (with free demos and a
+cached paid Georgian preview per voice); an editable translation table with
+per-line character budgets; and a cost estimate that must be on screen before
+the spend button.
+
 ## Cloud GPU (recommended) — Google Colab
 
 The GPU stages (Demucs, WhisperX) assume CUDA, which AMD cards can't provide on

@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 
 from .config import Config
-from .util import Manifest
+from .util import Manifest, PipelineError
 
 _SYSTEM = (
     "You are a professional dubbing translator. Translate each numbered line "
@@ -23,11 +23,20 @@ _SYSTEM = (
 )
 
 
+def char_budget(seg: dict, cfg: Config) -> int:
+    """Character budget for a line so its dubbed audio fits the time slot.
+
+    Single source of truth: used both in the translation prompt and by the
+    GUI's review table.
+    """
+    return max(12, int((seg["end"] - seg["start"]) * cfg.chars_per_second))
+
+
 def translate(video: Path, workdir: Path, manifest: Manifest, cfg: Config) -> None:
     import anthropic
 
     if not cfg.anthropic_key:
-        raise SystemExit("[translate] ANTHROPIC_API_KEY required (see .env.example).")
+        raise PipelineError("[translate] ANTHROPIC_API_KEY required (see .env.example).")
 
     todo = [s for s in manifest.segments if not s.get("text_tgt")]
     if not todo:
@@ -36,8 +45,7 @@ def translate(video: Path, workdir: Path, manifest: Manifest, cfg: Config) -> No
 
     lines = []
     for s in todo:
-        budget = max(12, int((s["end"] - s["start"]) * cfg.chars_per_second))
-        lines.append(f'{s["id"]} (<= {budget} chars): {s["text_src"]}')
+        lines.append(f'{s["id"]} (<= {char_budget(s, cfg)} chars): {s["text_src"]}')
     user = "\n".join(lines)
 
     client = anthropic.Anthropic(api_key=cfg.anthropic_key)
@@ -48,7 +56,7 @@ def translate(video: Path, workdir: Path, manifest: Manifest, cfg: Config) -> No
         messages=[{"role": "user", "content": user}],
     )
     if msg.stop_reason == "max_tokens":
-        raise SystemExit(
+        raise PipelineError(
             "[translate] response truncated at max_tokens — too many lines for one "
             "batch. Raise max_tokens in pipeline/translate.py or split the episode."
         )
@@ -66,7 +74,7 @@ def translate(video: Path, workdir: Path, manifest: Manifest, cfg: Config) -> No
 
     missing = [s["id"] for s in todo if not s.get("text_tgt")]
     if missing:
-        raise SystemExit(
+        raise PipelineError(
             f"[translate] model response was missing line ids {missing} — "
             "translated lines were saved; re-run the translate stage to fill the rest."
         )

@@ -9,7 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from .config import Config
-from .util import Manifest
+from .util import Manifest, PipelineError
 
 
 def _diarization_pipeline(hf_token: str, device: str):
@@ -25,8 +25,8 @@ def transcribe(video: Path, workdir: Path, manifest: Manifest, cfg: Config) -> N
     import whisperx
 
     if not cfg.hf_token:
-        raise SystemExit("[transcribe] HF_TOKEN required for speaker diarization "
-                         "(see .env.example).")
+        raise PipelineError("[transcribe] HF_TOKEN required for speaker diarization "
+                            "(see .env.example).")
 
     vocals = manifest.data["vocals"]
     audio = whisperx.load_audio(vocals)
@@ -60,6 +60,17 @@ def transcribe(video: Path, workdir: Path, manifest: Manifest, cfg: Config) -> N
         })
     manifest.segments = segments
     manifest.save()
+
+    # Release GPU memory: in a long-lived GUI process, a second run would OOM
+    # a T4 if the whisper/align/diarization models stayed resident.
+    del model, align_model, diarize
+    if cfg.device == "cuda":
+        import gc
+
+        import torch
+
+        gc.collect()
+        torch.cuda.empty_cache()
 
     speakers = sorted({s["speaker"] for s in segments if s["speaker"]})
     print(f"[transcribe] {len(segments)} lines, speakers: {speakers or 'none detected'}")
