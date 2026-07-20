@@ -56,14 +56,17 @@ the spend button.
 
 ## Cloud GPU (recommended) — Google Colab
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Lursmani/DL-Dub/blob/main/colab_dub.ipynb)
+
 The GPU stages (Demucs, WhisperX) assume CUDA, which AMD cards can't provide on
-Windows, so the simplest path is a free Colab T4. Open **`colab_dub.ipynb`** in
-[Google Colab](https://colab.research.google.com/) and run it top to bottom:
+Windows, so the simplest path is a free Colab T4. Click the badge to open
+**`colab_dub.ipynb`** and run it top to bottom:
 
 1. **Runtime → Change runtime type → T4 GPU**.
-2. Push this repo to GitHub and set `REPO_URL` in the notebook (or use the
-   zip-from-Drive fallback shown in that cell).
-3. Add `ELEVENLABS_API_KEY`, `ANTHROPIC_API_KEY`, `HF_TOKEN` in Colab's 🔑 Secrets panel.
+2. Add `ELEVENLABS_API_KEY`, `HF_TOKEN`, and one translation key (`ANTHROPIC_API_KEY`
+   / `OPENAI_API_KEY` / `GOOGLE_API_KEY`) in Colab's 🔑 Secrets panel.
+3. Run the clone + install cells. After install finishes, **restart the runtime once**
+   (pip upgrades numpy/torch), then continue.
 4. Drop your episode in `MyDrive/dubbing/`; the dubbed `*.ka.mp4` is written back there.
 
 A 6-minute episode processes in ~2–4 min of GPU time. The rest of this README covers
