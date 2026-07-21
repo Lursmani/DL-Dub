@@ -1,0 +1,14 @@
+# Optional ML extras for running the `separate` and `transcribe` stages
+# locally. Pulls in torch — several GB. Not needed if you run Analyze in
+# Colab (or another GPU box) and only translate/tts/assemble locally.
+#
+#   pip install -r requirements.txt -r requirements-ml.txt
+#
+# For NVIDIA GPU acceleration install the matching CUDA torch build FIRST
+# (see https://pytorch.org); otherwise CPU-only torch installs by default.
+
+# Transcription + word-level timestamps + speaker diarization
+whisperx>=3.1.1
+
+# Source separation (dialogue vs music/SFX). Installs the `demucs` CLI too.
+demucs>=4.0.1

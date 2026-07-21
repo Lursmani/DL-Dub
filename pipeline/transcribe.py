@@ -22,7 +22,14 @@ def _diarization_pipeline(hf_token: str, device: str):
 
 
 def transcribe(video: Path, workdir: Path, manifest: Manifest, cfg: Config) -> None:
-    import whisperx
+    try:
+        import whisperx
+    except ImportError as e:
+        raise PipelineError(
+            "[transcribe] whisperx is not installed. The ML extras are optional: "
+            "pip install -r requirements-ml.txt (several GB incl. torch), or run "
+            "the Analyze stage in Colab and finish locally — see README."
+        ) from e
 
     if not cfg.hf_token:
         raise PipelineError("[transcribe] HF_TOKEN required for speaker diarization "

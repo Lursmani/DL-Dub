@@ -1,0 +1,51 @@
+# GUI at http://localhost:7860 after `docker compose up gui`.
+#
+# Prereqs (one-time, on the host):
+#   cp .env.example .env                # fill in the API keys
+#   cp config.example.yaml config.yaml
+#
+#   docker compose up gui               # lite: API-only (Analyze runs in Colab)
+#   docker compose --profile ml up gui-full   # + local ML stages (CPU torch)
+#
+# CLI instead of the GUI:
+#   docker compose run --rm gui python dub.py estimate input/episode.mp4
+
+services:
+  gui:
+    build:
+      context: .
+      target: lite
+    image: dub-pipeline:lite
+    ports:
+      - "7860:7860"
+    env_file: .env
+    volumes:
+      - ./config.yaml:/app/config.yaml
+      - ./work:/app/work
+      - ./input:/app/input
+      - ./output:/app/output
+
+  gui-full:
+    profiles: ["ml"]
+    build:
+      context: .
+      target: full
+      # For NVIDIA hosts, build GPU torch wheels instead of CPU:
+      # args:
+      #   TORCH_CHANNEL: cu126
+    image: dub-pipeline:full
+    ports:
+      - "7860:7860"
+    env_file: .env
+    volumes:
+      - ./config.yaml:/app/config.yaml
+      - ./work:/app/work
+      - ./input:/app/input
+      - ./output:/app/output
+      # Whisper/pyannote/Demucs weights (~4 GB) download once into this volume.
+      - model-cache:/cache
+    # For NVIDIA hosts (needs the NVIDIA Container Toolkit + the cu126 build):
+    # gpus: all
+
+volumes:
+  model-cache:

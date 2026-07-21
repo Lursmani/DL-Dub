@@ -54,6 +54,16 @@ cached paid Georgian preview per voice); an editable translation table with
 per-line character budgets; and a cost estimate that must be on screen before
 the spend button.
 
+The GUI adapts to the install. With the ML extras present (**full mode**) you
+get the manual wizard above. On a lite install (**lite mode**, no
+`requirements-ml.txt`) the **⚡ Auto-dub** tab becomes the primary path: one
+call to ElevenLabs' managed Dubbing API that transcribes, translates, clones
+the original voices, and preserves their intonation — no local ML at all, at
+~$0.33–0.50 per minute of source instead of pennies per episode. The same
+thing is available on the CLI as `python dub.py autodub episode.mp4`. The
+manual tabs still work in lite mode for episodes analyzed in Colab (copy the
+episode's `work/` folder over and hit *Refresh from disk*).
+
 ## Cloud GPU (recommended) — Google Colab
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Lursmani/DL-Dub/blob/main/colab_dub.ipynb)
@@ -78,9 +88,13 @@ running the same pipeline **locally** (CUDA or CPU).
 2. **ffmpeg + ffprobe** on PATH — `winget install Gyan.FFmpeg` (Windows) / `brew install ffmpeg`.
 3. **A GPU is strongly recommended** for WhisperX + Demucs. CPU works but is slow;
    the pipeline auto-detects CUDA and falls back to CPU (`int8`) otherwise.
-4. Python deps: `pip install -r requirements.txt`
-   - `demucs` and `whisperx` pull in `torch`. For CUDA, install the matching
-     torch build first (see https://pytorch.org). CPU-only torch installs by default.
+4. Python deps — split so the heavy ML stack is **optional**:
+   - `pip install -r requirements.txt` — the lite/API-only install (a few hundred MB).
+     Runs the GUI and every stage except `separate`/`transcribe`: perfect if you run
+     Analyze in Colab and only do Voices/Translate/Dub locally.
+   - `pip install -r requirements-ml.txt` — adds Demucs + WhisperX for local Analyze
+     (pulls in `torch`, several GB). For CUDA, install the matching torch build first
+     (see https://pytorch.org). CPU-only torch installs by default.
 
 ## Setup
 
@@ -96,6 +110,37 @@ cp config.example.yaml config.yaml
 - **HF_TOKEN** — a HuggingFace token, AND you must accept the license once (logged in) at
   [pyannote/speaker-diarization-3.1](https://hf.co/pyannote/speaker-diarization-3.1) and
   [pyannote/segmentation-3.0](https://hf.co/pyannote/segmentation-3.0), or diarization fails.
+
+## Docker
+
+Two image targets mirror the dependency split:
+
+```bash
+cp .env.example .env                  # fill in the API keys
+cp config.example.yaml config.yaml
+
+docker compose up gui                 # lite (~1.5 GB): GUI + API-only stages
+docker compose --profile ml up gui-full   # full (~5 GB): adds Demucs/WhisperX
+```
+
+The GUI is at http://localhost:7860. `work/`, `input/`, `output/`, and
+`config.yaml` are mounted from the host, so container and native runs are fully
+interchangeable — start an episode in Colab, finish it in the lite container.
+The full image also mounts a `model-cache` volume so the ~4 GB of Whisper/
+pyannote/Demucs weights download only once.
+
+CLI instead of the GUI:
+
+```bash
+docker compose run --rm gui python dub.py estimate input/episode.mp4
+```
+
+GPU note: the `full` image installs **CPU torch** by default and runs anywhere
+Docker runs. On a host with an NVIDIA GPU, build with
+`--build-arg TORCH_CHANNEL=cu126` and run with `--gpus all` (requires the
+NVIDIA Container Toolkit; on Windows that means the WSL2 backend). AMD GPUs
+can't accelerate these stages in Docker — use Colab for the Analyze step
+instead.
 
 ## Usage — the two-pass workflow
 

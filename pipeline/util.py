@@ -17,12 +17,10 @@ class PipelineError(RuntimeError):
     """
 
 
-def check_tool(name: str) -> None:
+def check_tool(name: str, hint: str = "See README setup section.") -> None:
     """Fail fast with a clear message if a required CLI isn't on PATH."""
     if shutil.which(name) is None:
-        raise PipelineError(
-            f"Required tool '{name}' not found on PATH. See README setup section."
-        )
+        raise PipelineError(f"Required tool '{name}' not found on PATH. {hint}")
 
 
 def run(cmd: list[str], **kwargs: Any) -> subprocess.CompletedProcess:

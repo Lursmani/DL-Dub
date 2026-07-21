@@ -13,7 +13,12 @@ from .util import Manifest, PipelineError, check_tool, run
 
 
 def separate(video: Path, workdir: Path, manifest: Manifest, cfg: Config) -> None:
-    check_tool("demucs")
+    check_tool(
+        "demucs",
+        hint="The ML extras are optional: pip install -r requirements-ml.txt "
+             "(several GB incl. torch), or run the Analyze stage in Colab and "
+             "finish locally — see README.",
+    )
     audio = Path(manifest.data["audio"])
     out_root = workdir / "demucs"
     vocals = workdir / "vocals.wav"

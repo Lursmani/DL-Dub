@@ -1,11 +1,9 @@
-# Core pipeline dependencies.
-# ffmpeg + demucs CLIs must ALSO be installed and on PATH (see README).
-
-# Transcription + word-level timestamps + speaker diarization
-whisperx>=3.1.1
-
-# Source separation (dialogue vs music/SFX). Installs the `demucs` CLI too.
-demucs>=4.0.1
+# Core (API-only) dependencies — enough for the GUI and every stage except
+# `separate` and `transcribe`. ffmpeg + ffprobe must be on PATH (see README).
+#
+# The local ML stages (Demucs separation, WhisperX transcription) need the
+# heavyweight extras in requirements-ml.txt (~several GB incl. torch). Skip
+# them if you run Analyze in Colab and only translate/dub locally.
 
 # Georgian TTS
 elevenlabs>=1.0,<2
