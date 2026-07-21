@@ -37,8 +37,10 @@ def speaker_samples(
     """
     from pydub import AudioSegment  # lazy: needs ffmpeg via pydub
 
-    vocals_path = manifest.data.get("vocals")
-    if not vocals_path or not Path(vocals_path).exists():
+    # Derived from the workdir, not manifest paths — those are absolute and go
+    # stale when a work dir moves between machines (e.g. Colab -> local).
+    vocals_path = workdir / "vocals.wav"
+    if not vocals_path.exists():
         return {}
     out_dir = workdir / "samples"
     out_dir.mkdir(parents=True, exist_ok=True)

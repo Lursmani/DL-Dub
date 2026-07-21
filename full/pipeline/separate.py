@@ -19,7 +19,12 @@ def separate(video: Path, workdir: Path, manifest: Manifest, cfg: Config) -> Non
              "(several GB incl. torch), or run the Analyze stage in Colab and "
              "finish locally — see README.",
     )
-    audio = Path(manifest.data["audio"])
+    # Derived from the workdir, not manifest paths — those are absolute and go
+    # stale when a work dir moves between machines (e.g. Colab -> local).
+    audio = workdir / "audio.wav"
+    if not audio.exists():
+        raise PipelineError("[separate] audio.wav not found in the work dir — "
+                            "run the extract stage first.")
     out_root = workdir / "demucs"
     vocals = workdir / "vocals.wav"
     background = workdir / "background.wav"

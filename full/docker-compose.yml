@@ -1,5 +1,6 @@
 # GUI at http://localhost:7861 after `docker compose up gui`.
-# (Host port 7861 so the lite project's GUI can run on 7860 alongside.)
+# (The full project uses port 7861 everywhere; lite uses 7860, so both GUIs
+# can run alongside each other.)
 #
 # Prereqs (one-time, on the host, in this directory):
 #   cp .env.example .env                # fill in the API keys
@@ -22,7 +23,7 @@ services:
       #   TORCH_CHANNEL: cu126
     image: dub-full
     ports:
-      - "7861:7860"
+      - "7861:7861"
     env_file: .env
     volumes:
       - ./config.yaml:/app/config.yaml

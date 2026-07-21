@@ -11,7 +11,7 @@ from pathlib import Path
 from pydub import AudioSegment
 
 from .config import Config
-from .util import Manifest, run
+from .util import Manifest, PipelineError, run
 
 
 def _fit_duration(clip: Path, target_s: float, cfg: Config, tmp: Path) -> AudioSegment:
@@ -39,19 +39,45 @@ def _fit_duration(clip: Path, target_s: float, cfg: Config, tmp: Path) -> AudioS
 
 def assemble(video: Path, workdir: Path, manifest: Manifest, cfg: Config) -> None:
     tmp = workdir / "clips"
-    background = AudioSegment.from_file(manifest.data["background"])
+    # Derived from the workdir, not manifest paths — those are absolute and go
+    # stale when a work dir moves between machines (e.g. Colab -> local).
+    background_path = workdir / "background.wav"
+    if not background_path.exists():
+        raise PipelineError("[assemble] background.wav not found in the work "
+                            "dir — run the separate stage first.")
+    background = AudioSegment.from_file(background_path)
     total_ms = len(background)
 
-    dialogue = AudioSegment.silent(duration=total_ms)
+    # Fit all clips first so the timeline can grow to hold a final line that
+    # overflows its slot — overlay silently drops audio past the timeline end.
+    fitted_clips: list[tuple[int, AudioSegment]] = []
+    end_ms = total_ms
     for s in manifest.segments:
         clip_path = s.get("clip")
         if not clip_path:
             continue
-        target = s["end"] - s["start"]
-        fitted = _fit_duration(Path(clip_path), target, cfg, tmp)
-        dialogue = dialogue.overlay(fitted, position=int(s["start"] * 1000))
+        clip = Path(clip_path)
+        if not clip.exists():
+            # Stale absolute path from another machine; same filename locally?
+            clip = tmp / clip.name
+            if not clip.exists():
+                raise PipelineError(f"[assemble] missing clip for line "
+                                    f"{s['id']} — re-run the tts stage.")
+        pos = int(s["start"] * 1000)
+        fitted = _fit_duration(clip, s["end"] - s["start"], cfg, tmp)
+        fitted_clips.append((pos, fitted))
+        end_ms = max(end_ms, pos + len(fitted))
 
-    mixed = background.apply_gain(cfg.background_gain_db).overlay(dialogue)
+    dialogue = AudioSegment.silent(duration=end_ms)
+    for pos, fitted in fitted_clips:
+        dialogue = dialogue.overlay(fitted, position=pos)
+
+    bed = background.apply_gain(cfg.background_gain_db)
+    if end_ms > total_ms:
+        bed = bed + AudioSegment.silent(duration=end_ms - total_ms)
+        print(f"[assemble] dialogue runs {(end_ms - total_ms) / 1000:.1f}s past "
+              "the source audio; mux trims the result to the video length.")
+    mixed = bed.overlay(dialogue)
     final = workdir / "final_audio.wav"
     mixed.export(final, format="wav")
     manifest.data["final_audio"] = str(final)

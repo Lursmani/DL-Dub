@@ -29,7 +29,7 @@ class Config:
     whisper_model: str = "large-v3"
     device: str = ""
     compute_type: str = ""
-    translate_provider: str = "google"  # anthropic | openai | google
+    translate_provider: str = "anthropic"  # anthropic | openai | google
     translate_model: str = ""  # blank = provider default
     chars_per_second: float = 15.0
     default_tts_model: str = "eleven_flash_v2_5"
@@ -97,9 +97,17 @@ class Config:
             encoding="utf-8",
         )
 
-    def voice_for(self, speaker: str | None) -> tuple[str, str]:
-        """(voice_id, model_id) for a diarization speaker label, with fallback."""
-        entry = self.voices.get(speaker or "", {})
+    def voice_for(self, speaker: str | None,
+                  overrides: dict[str, dict[str, str]] | None = None,
+                  ) -> tuple[str, str]:
+        """(voice_id, model_id) for a diarization speaker label, with fallback.
+
+        `overrides` is the per-episode mapping (manifest.voices) — speaker
+        labels mean a different character in every episode. config.yaml's
+        global `voices:` is the fallback, then the defaults.
+        """
+        key = speaker or ""
+        entry = (overrides or {}).get(key) or self.voices.get(key) or {}
         return (
             entry.get("voice_id") or self.default_voice_id,
             entry.get("model_id") or self.default_tts_model,

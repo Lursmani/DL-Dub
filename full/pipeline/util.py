@@ -24,7 +24,8 @@ def check_tool(name: str, hint: str = "See README setup section.") -> None:
 
 
 def run(cmd: list[str], **kwargs: Any) -> subprocess.CompletedProcess:
-    """Run a subprocess; on failure, surface its captured stderr before raising."""
+    """Run a subprocess; on failure, surface its captured stderr and raise
+    PipelineError so both the CLI and the GUI show a clean message."""
     try:
         return subprocess.run([str(c) for c in cmd], check=True, **kwargs)
     except subprocess.CalledProcessError as e:
@@ -34,7 +35,9 @@ def run(cmd: list[str], **kwargs: Any) -> subprocess.CompletedProcess:
         print(f"[run] command failed: {' '.join(str(c) for c in cmd)}")
         if err:
             print(err.strip())
-        raise
+        raise PipelineError(
+            f"'{cmd[0]}' failed (exit {e.returncode}) — see the output above."
+        ) from e
 
 
 # Anchor work/ to the project root so results don't depend on the caller's cwd.
@@ -63,7 +66,12 @@ class Manifest:
     def load_or_init(cls, workdir: Path, video: Path) -> "Manifest":
         path = workdir / "manifest.json"
         if path.exists():
-            return cls(path, json.loads(path.read_text(encoding="utf-8")))
+            data = json.loads(path.read_text(encoding="utf-8"))
+            # The caller's video path is authoritative — a manifest produced on
+            # another machine (e.g. Colab) holds a stale absolute path there.
+            # Persisted whenever the next stage saves.
+            data["video"] = str(video)
+            return cls(path, data)
         return cls(path, {"video": str(video), "segments": []})
 
     def save(self) -> None:
@@ -78,6 +86,16 @@ class Manifest:
     @segments.setter
     def segments(self, value: list[dict[str, Any]]) -> None:
         self.data["segments"] = value
+
+    @property
+    def voices(self) -> dict[str, dict[str, str]]:
+        """Per-episode speaker→voice mapping (saved by the GUI's Voices tab).
+
+        Speaker labels (SPEAKER_00, …) mean a different character in every
+        episode, so the mapping lives here rather than in the shared
+        config.yaml; config.yaml's `voices:` acts as a global fallback.
+        """
+        return self.data.get("voices", {})
 
 
 def ffprobe_duration(path: Path) -> float:

@@ -48,8 +48,10 @@ finish in the other.
 - **In Colab (primary)**: the notebook's "Launch the GUI" cell prints a public
   `*.gradio.live` link — open it in a new browser tab. If the link dies mid-run,
   re-run the cell and click *Refresh from disk*; all progress is on disk.
-- **Locally**: `python -m gui` (add `--share` for a public link). Fine for the
-  Voices/Translate/Dub steps (they're API calls); Analyze runs on CPU locally.
+- **Locally**: `python -m gui` (port 7861; add `--share` for a public link —
+  note anyone with that link can run stages and spend your API credits). Fine
+  for the Voices/Translate/Dub steps (they're API calls); Analyze runs on CPU
+  locally.
 
 Highlights: per-speaker audio samples so you can hear who's who before picking
 voices; your ElevenLabs voice library in a dropdown (with free demos and a
@@ -120,8 +122,8 @@ cp config.example.yaml config.yaml
 docker compose up gui                 # full image (~5 GB): the whole pipeline
 ```
 
-The GUI is at http://localhost:7861 (host port 7861 so the lite project's GUI
-can run on 7860 alongside). `work/`, `input/`, `output/`, and `config.yaml`
+The GUI is at http://localhost:7861 (the full project uses port 7861; lite
+uses 7860, so both GUIs can run alongside each other). `work/`, `input/`, `output/`, and `config.yaml`
 are mounted from the host, so container and native runs are fully
 interchangeable — start an episode in Colab, finish it in the container. The
 image also mounts a `model-cache` volume so the ~4 GB of Whisper/pyannote/
@@ -152,7 +154,10 @@ python dub.py run episode.mp4 --stop-after transcribe
 Open `work/episode/manifest.json`, read the lines, and note which `SPEAKER_xx`
 is which character. Fill those into `config.yaml` under `voices:` with a
 `voice_id` per character (grab IDs from your ElevenLabs voice library or clone
-your Georgian voice actors — cloned voices cost nothing to reuse).
+your Georgian voice actors — cloned voices cost nothing to reuse). The GUI's
+Voices tab does the same thing per episode — it saves into the episode's
+manifest, since speaker labels mean a different character in every episode;
+`config.yaml`'s `voices:` acts as a global fallback.
 
 **Pass 2 — translate, preview cost, dub, splice:**
 ```bash

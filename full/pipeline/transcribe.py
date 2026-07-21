@@ -35,8 +35,13 @@ def transcribe(video: Path, workdir: Path, manifest: Manifest, cfg: Config) -> N
         raise PipelineError("[transcribe] HF_TOKEN required for speaker diarization "
                             "(see .env.example).")
 
-    vocals = manifest.data["vocals"]
-    audio = whisperx.load_audio(vocals)
+    # Derived from the workdir, not manifest paths — those are absolute and go
+    # stale when a work dir moves between machines (e.g. Colab -> local).
+    vocals = workdir / "vocals.wav"
+    if not vocals.exists():
+        raise PipelineError("[transcribe] vocals.wav not found in the work dir "
+                            "— run the separate stage first.")
+    audio = whisperx.load_audio(str(vocals))
 
     model = whisperx.load_model(
         cfg.whisper_model, cfg.device, compute_type=cfg.compute_type,

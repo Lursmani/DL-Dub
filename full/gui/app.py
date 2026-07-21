@@ -23,7 +23,7 @@ from pipeline.tts import estimate as tts_estimate
 from pipeline.util import Manifest, workdir_for
 
 from . import samples, voices
-from .runner import run_stages
+from .runner import RUN_LOCK, run_stages
 from .state import (
     CONFIG_PATH,
     REPO_ROOT,
@@ -178,7 +178,9 @@ def build_app() -> gr.Blocks:
                 gr.Markdown(
                     "Listen to each detected speaker, then assign an ElevenLabs "
                     "voice. **Fetch voices** pulls your voice library (incl. any "
-                    "cloned Georgian voices). Save writes to `config.yaml`.")
+                    "cloned Georgian voices). Choices are saved per episode "
+                    "(into its manifest); the default voice goes to "
+                    "`config.yaml`.")
                 with gr.Row():
                     fetch_btn = gr.Button("Fetch my ElevenLabs voices")
                     voices_status = gr.Markdown("")
@@ -211,7 +213,7 @@ def build_app() -> gr.Blocks:
                 default_dd = gr.Dropdown(
                     label="Default voice (fallback for unmapped speakers)",
                     choices=[], allow_custom_value=True)
-                save_btn = gr.Button("💾 Save voice mapping → config.yaml",
+                save_btn = gr.Button("💾 Save voice mapping for this episode",
                                      variant="primary")
 
             # ---------------- 4 · Translate & review ----------------
@@ -221,7 +223,8 @@ def build_app() -> gr.Blocks:
                     "Translate Dutch → Georgian with your chosen API (costs "
                     "pennies), then edit any line below. Only the **Georgian** "
                     "column is editable; edits save automatically. Lines you edit "
-                    "re-bill only themselves at dub time.")
+                    "re-bill only themselves at dub time. Clear a cell to mark "
+                    "the line for re-translation.")
                 with gr.Row():
                     provider_dd = gr.Dropdown(
                         label="Translation API", choices=[], scale=2,
@@ -287,7 +290,7 @@ def build_app() -> gr.Blocks:
                     clips = per_speaker[sp]
                     n_lines = sum(1 for s in manifest.segments
                                   if s.get("speaker") == sp)
-                    vid, model = cfg.voice_for(sp)
+                    vid, model = cfg.voice_for(sp, manifest.voices)
                     cur = "" if "REPLACE" in (vid or "").upper() else vid
                     updates.append(gr.update(visible=True))          # group
                     updates.append(gr.update(                        # title
@@ -342,13 +345,16 @@ def build_app() -> gr.Blocks:
                     gr.update(value=samples.speaker_stats(
                         Manifest.load_or_init(workdir_for(Path(video)),
                                               Path(video)))
-                        if st.has_segments else None))
+                        if st.has_segments else None),
+                    _setup_report())
 
         refresh_btn.click(
             do_refresh, inputs=[episode],
             outputs=[status_banner, *gated_tabs, review_df, totals_md,
-                     speakers_table],
+                     speakers_table, setup_md],
         )
+        # Re-check the environment (.env edits, new installs) on page load too.
+        demo.load(_setup_report, outputs=[setup_md])
 
         # --- Analyze ---
         def do_analyze(video: str, force: bool):
@@ -428,11 +434,22 @@ def build_app() -> gr.Blocks:
                                 outputs=[s["prev"], voices_status])
 
         def do_save(video, speakers, default_voice, *dd_rd_values):
+            if not video:
+                st = pipeline_status(video)
+                return ("⚠️ Load an episode first (Setup tab).",
+                        status_markdown(st), *gate(st))
+            if RUN_LOCK.locked():
+                st = pipeline_status(video)
+                return ("⚠️ A run is in progress — voices not saved, "
+                        "try again after.", status_markdown(st), *gate(st))
             dds = dd_rd_values[:MAX_SPEAKERS]
             rds = dd_rd_values[MAX_SPEAKERS:]
             mapping = {sp: (dds[i] or "", rds[i])
                        for i, sp in enumerate(speakers or [])}
-            msg = voices.save_mapping(CONFIG_PATH, mapping, default_voice or "")
+            manifest = Manifest.load_or_init(workdir_for(Path(video)),
+                                             Path(video))
+            msg = voices.save_mapping(CONFIG_PATH, manifest, mapping,
+                                      default_voice or "")
             st = pipeline_status(video)
             return (msg, status_markdown(st), *gate(st))
 
@@ -520,9 +537,11 @@ def build_app() -> gr.Blocks:
             if est["chars"] == 0:
                 return "Nothing to synthesize yet — run Translate first."
             st = pipeline_status(video)
-            recap = "\n".join(
-                f"- `{sp}` → `{cfg.voice_for(sp)[0]}` ({cfg.voice_for(sp)[1]})"
-                for sp in st.speakers)
+            recap_lines = []
+            for sp in st.speakers:
+                vid, model = cfg.voice_for(sp, manifest.voices)
+                recap_lines.append(f"- `{sp}` → `{vid}` ({model})")
+            recap = "\n".join(recap_lines)
             return (f"### Cost estimate\n**{est['chars']} characters ≈ "
                     f"{est['credits']} credits ≈ ${est['usd']}**\n\n"
                     f"Voices about to be used:\n{recap}\n\n"

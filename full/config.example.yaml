@@ -28,9 +28,12 @@ default_tts_model: eleven_flash_v2_5
 default_voice_id: REPLACE_WITH_A_VOICE_ID
 output_format: mp3_44100_128
 
-# Map diarization speaker labels -> a voice per character.
+# Map diarization speaker labels -> a voice per character (global fallback).
 # Run the pipeline up to the `transcribe` stage once; the labels (SPEAKER_00, ...)
 # appear in work/<episode>/manifest.json. Listen, identify each character, then fill in.
+# NOTE: the GUI's Voices tab saves per-episode mappings into the episode's
+# manifest instead (labels mean a different character in every episode); the
+# entries here are the fallback for speakers the manifest doesn't cover.
 # Unmapped speakers fall back to default_voice_id / default_tts_model.
 voices:
   SPEAKER_00:

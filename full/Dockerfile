@@ -10,8 +10,9 @@
 #   docker build -t dub-full .
 #   docker build --target core -t dub-full:core .
 #
-# The container serves the Gradio GUI on port 7860 by default; any CLI command
-# works too: docker run ... dub-full python dub.py estimate <video>
+# The container serves the Gradio GUI on port 7861 by default (lite uses
+# 7860, so both can run at once); any CLI command works too:
+#   docker run ... dub-full python dub.py estimate <video>
 
 FROM python:3.12-slim AS base
 
@@ -33,7 +34,7 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-EXPOSE 7860
+EXPOSE 7861
 CMD ["python", "-m", "gui"]
 
 # ---------- core: no local ML (Analyze runs in Colab) ----------

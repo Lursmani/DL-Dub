@@ -30,9 +30,6 @@ def clip_hash(text: str, voice_id: str, model_id: str, fmt: str) -> str:
     ).hexdigest()[:16]
 
 
-_hash = clip_hash  # backwards-compat alias
-
-
 def estimate(manifest: Manifest, cfg: Config) -> dict:
     """Cost preview — no API calls."""
     chars = credits = usd = 0
@@ -40,7 +37,7 @@ def estimate(manifest: Manifest, cfg: Config) -> dict:
         text = s.get("text_tgt")
         if not text:
             continue
-        _, model = cfg.voice_for(s.get("speaker"))
+        _, model = cfg.voice_for(s.get("speaker"), manifest.voices)
         rate = _rate(model)
         chars += len(text)
         credits += len(text) * rate
@@ -60,7 +57,7 @@ def synth(video: Path, workdir: Path, manifest: Manifest, cfg: Config) -> None:
 
     todo = [s for s in manifest.segments if s.get("text_tgt")]
     for s in tqdm(todo, desc="[tts]"):
-        voice_id, model_id = cfg.voice_for(s.get("speaker"))
+        voice_id, model_id = cfg.voice_for(s.get("speaker"), manifest.voices)
         if not voice_id or "REPLACE" in voice_id.upper():
             raise PipelineError(
                 f"[tts] speaker {s.get('speaker')}: voice_id is unset or still a "

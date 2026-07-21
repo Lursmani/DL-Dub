@@ -6,6 +6,7 @@ stays interchangeable with the CLI.
 """
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -51,7 +52,7 @@ def pipeline_status(video: str) -> Status:
     speakers = sorted({s["speaker"] for s in segs if s.get("speaker")})
 
     def _mapped(sp: str | None) -> bool:
-        vid, _ = cfg.voice_for(sp)
+        vid, _ = cfg.voice_for(sp, manifest.voices)
         return bool(vid) and "REPLACE" not in vid.upper()
 
     output = manifest.data.get("output", "")
@@ -96,8 +97,6 @@ def discover_episodes() -> list[str]:
     found = []
     for mf in sorted((REPO_ROOT / "work").glob("*/manifest.json")):
         try:
-            import json
-
             video = json.loads(mf.read_text(encoding="utf-8")).get("video", "")
             if video and Path(video).exists():
                 found.append(video)
@@ -165,8 +164,13 @@ def df_to_manifest(df: pd.DataFrame, video: str) -> tuple[pd.DataFrame, str]:
             continue
         raw = row["Georgian (editable)"]
         new = "" if pd.isna(raw) else str(raw).strip()
-        if new and new != (seg.get("text_tgt") or ""):
-            seg["text_tgt"] = new
+        old = seg.get("text_tgt") or ""
+        if new != old:
+            if new:
+                seg["text_tgt"] = new
+            else:
+                # Cell deliberately cleared — the line becomes re-translatable.
+                seg.pop("text_tgt", None)
             changed += 1
     if changed:
         manifest.save()

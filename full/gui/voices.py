@@ -5,6 +5,7 @@ from pathlib import Path
 
 from pipeline.config import Config
 from pipeline.tts import clip_hash
+from pipeline.util import Manifest
 
 # Fixed Georgian sample sentence (~30 chars => ~15 credits flash / ~30 multilingual).
 PREVIEW_TEXT = "გამარჯობა! ეს ჩემი ხმის სინჯია."
@@ -63,18 +64,25 @@ def georgian_preview(api_key: str, workdir: Path, voice_id: str,
     return str(path)
 
 
-def save_mapping(config_path: Path, mapping: dict[str, tuple[str, str]],
+def save_mapping(config_path: Path, manifest: Manifest,
+                 mapping: dict[str, tuple[str, str]],
                  default_voice_id: str) -> str:
-    """Persist speaker->voice choices to config.yaml; returns a status line."""
+    """Persist speaker->voice choices; returns a status line.
+
+    Speaker labels (SPEAKER_00, …) mean a different character in every
+    episode, so the mapping is saved into the episode's manifest. The default
+    voice is a global preference and goes to config.yaml.
+    """
     voices = {
         speaker: {"voice_id": vid, "model_id": model}
         for speaker, (vid, model) in mapping.items()
         if vid and "REPLACE" not in vid.upper()
     }
-    updates: dict = {"voices": voices}
-    if default_voice_id and "REPLACE" not in default_voice_id.upper():
-        updates["default_voice_id"] = default_voice_id
-    Config.update_yaml(config_path, updates)
-    return (f"Saved {len(voices)} speaker mapping(s)"
-            + (" + default voice" if "default_voice_id" in updates else "")
-            + f" → {config_path.name}")
+    manifest.data["voices"] = voices
+    manifest.save()
+    save_default = bool(default_voice_id
+                        and "REPLACE" not in default_voice_id.upper())
+    if save_default:
+        Config.update_yaml(config_path, {"default_voice_id": default_voice_id})
+    return (f"Saved {len(voices)} speaker mapping(s) for this episode"
+            + (f" + default voice → {config_path.name}" if save_default else ""))

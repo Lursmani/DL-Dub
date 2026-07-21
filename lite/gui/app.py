@@ -45,7 +45,7 @@ def build_app() -> gr.Blocks:
             "translates, **clones the original voices** and keeps their "
             "intonation — no speaker mapping, no local ML. Billed **per "
             "minute of source** (~$0.33/min watermarked, ~$0.50/min clean).")
-        gr.Markdown(_setup_report())
+        setup_md = gr.Markdown(_setup_report())
 
         video_tb = gr.Textbox(label="Video path",
                               placeholder="input/episode.mp4")
@@ -75,6 +75,9 @@ def build_app() -> gr.Blocks:
 
         for trigger in (video_tb.blur, wm.change, demo.load):
             trigger(show_estimate, inputs=[video_tb, wm], outputs=[est])
+
+        # Re-check the environment (.env edits) on page load too.
+        demo.load(_setup_report, outputs=[setup_md])
 
         def do_autodub(path: str, src_lang: str, tgt_lang: str,
                        watermark: bool):

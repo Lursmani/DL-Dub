@@ -157,13 +157,26 @@ def translate(video: Path, workdir: Path, manifest: Manifest, cfg: Config) -> No
         )
     text = text.strip()
     # Be tolerant of stray prose around the JSON.
-    text = text[text.find("{"): text.rfind("}") + 1]
-    mapping = json.loads(text)
+    start, end = text.find("{"), text.rfind("}")
+    if start == -1 or end <= start:
+        raise PipelineError("[translate] the model returned no JSON object — "
+                            "re-run the translate stage.")
+    try:
+        mapping = json.loads(text[start: end + 1])
+    except json.JSONDecodeError as e:
+        raise PipelineError(f"[translate] the model returned malformed JSON "
+                            f"({e}) — re-run the translate stage.") from e
+    if not isinstance(mapping, dict):
+        raise PipelineError("[translate] the model returned JSON that is not "
+                            "an object — re-run the translate stage.")
 
     by_id = {s["id"]: s for s in manifest.segments}
     for k, v in mapping.items():
-        seg = by_id.get(int(k))
-        if seg is not None:
+        try:
+            seg = by_id.get(int(k))
+        except (TypeError, ValueError):
+            continue  # non-numeric key the model invented — skip it
+        if seg is not None and isinstance(v, str) and v.strip():
             seg["text_tgt"] = v.strip()
     manifest.save()  # save first: a re-run only re-requests the still-missing lines
 
