@@ -1,17 +1,17 @@
 # syntax=docker/dockerfile:1
-# Two build targets (pick with --target):
+# Two build targets (pick with --target; default = full):
 #
-#   lite  (~1.5 GB) — GUI + every stage except separate/transcribe. Use this if
-#                    Analyze runs in Colab, or with the ElevenLabs Dubbing API.
+#   core  (~1.5 GB) — GUI + every stage except separate/transcribe, for the
+#                    hybrid workflow where Analyze runs in Colab.
 #   full  (~5 GB)  — adds Demucs + WhisperX. CPU torch by default; for NVIDIA
 #                    hosts build with --build-arg TORCH_CHANNEL=cu126 and run
 #                    with --gpus all (needs the NVIDIA Container Toolkit).
 #
-#   docker build --target lite -t dub-pipeline:lite .
-#   docker build --target full -t dub-pipeline:full .
+#   docker build -t dub-full .
+#   docker build --target core -t dub-full:core .
 #
 # The container serves the Gradio GUI on port 7860 by default; any CLI command
-# works too: docker run ... dub-pipeline:lite python dub.py estimate <video>
+# works too: docker run ... dub-full python dub.py estimate <video>
 
 FROM python:3.12-slim AS base
 
@@ -36,8 +36,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 EXPOSE 7860
 CMD ["python", "-m", "gui"]
 
-# ---------- lite: API-only ----------
-FROM base AS lite
+# ---------- core: no local ML (Analyze runs in Colab) ----------
+FROM base AS core
 COPY . .
 
 # ---------- full: + local ML stages ----------

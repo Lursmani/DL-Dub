@@ -1,4 +1,4 @@
-# secrets & machine-local config
+# secrets & machine-local config (both projects)
 .env
 config.yaml
 
@@ -6,10 +6,10 @@ config.yaml
 work/
 
 # input videos / finished dubs: keep the folders in git, ignore their (large) contents
-input/*
-!input/.gitkeep
-output/*
-!output/.gitkeep
+**/input/*
+!**/input/.gitkeep
+**/output/*
+!**/output/.gitkeep
 
 # python
 __pycache__/

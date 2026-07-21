@@ -4,7 +4,6 @@ The opposite trade-off to the manual pipeline: billed per minute of source
 audio (~$0.33/min watermarked, ~$0.50/min clean at API rates) instead of per
 character — several times pricier — but it needs no local ML at all, and it
 clones the original voices and preserves their intonation automatically.
-This is the primary path for the lite (API-only) install.
 """
 from __future__ import annotations
 
@@ -12,7 +11,7 @@ import time
 from pathlib import Path
 
 from .config import Config
-from .util import Manifest, PipelineError, ffprobe_duration
+from .util import PipelineError, ffprobe_duration
 
 # API billing per minute of source audio, by watermark choice.
 _USD_PER_MIN = {True: 0.33, False: 0.50}
@@ -45,12 +44,11 @@ def _api(client, new: str, old: str):
     return getattr(client.dubbing, new, None) or getattr(client.dubbing, old)
 
 
-def autodub(video: Path, workdir: Path, manifest: Manifest, cfg: Config,
+def autodub(video: Path, workdir: Path, cfg: Config,
             *, source_lang: str = "", target_lang: str = "",
             watermark: bool = True) -> Path:
     """Upload, poll until dubbed, download. Progress goes to stdout so the
-    GUI's runner machinery can stream it. Stage-compatible signature
-    (manifest is unused) so it can run through gui.runner.run_stages."""
+    GUI's runner machinery (gui.runner.run_stages) can stream it."""
     from elevenlabs.client import ElevenLabs
 
     if not cfg.elevenlabs_key:

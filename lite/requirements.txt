@@ -1,0 +1,12 @@
+# API-only auto-dub — one call to the managed ElevenLabs Dubbing API.
+# ffprobe (ships with ffmpeg) must be on PATH for the pre-spend cost estimate.
+
+# The Dubbing API client
+elevenlabs>=1.0,<2
+
+# Config + env
+pyyaml>=6.0
+python-dotenv>=1.0.0
+
+# Web GUI (gui/ package)
+gradio>=5,<6

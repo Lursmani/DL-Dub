@@ -37,7 +37,7 @@ def run(cmd: list[str], **kwargs: Any) -> subprocess.CompletedProcess:
         raise
 
 
-# Anchor work/ to the repo root so results don't depend on the caller's cwd.
+# Anchor work/ to the project root so results don't depend on the caller's cwd.
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 
 

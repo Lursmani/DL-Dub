@@ -1,0 +1,26 @@
+# VCS / editor / tooling
+.git
+.gitignore
+
+# Python build junk
+__pycache__
+**/__pycache__
+*.pyc
+.venv
+
+# Secrets + personal config — passed at runtime (env_file / volume mounts).
+# .env.example is excluded too: it's a template the image doesn't need, and
+# keeping it out means a real key pasted into it can never end up in an image.
+.env
+.env.example
+config.yaml
+
+# Media + per-episode state — mounted as volumes, never baked into the image
+work
+input
+output
+*.mp4
+
+# Docker files themselves
+Dockerfile
+docker-compose.yml

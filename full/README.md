@@ -1,10 +1,13 @@
-# dub-pipeline
+# dub-pipeline — full
 
 Automated dubbing for a Dutch cartoon → Georgian, built to be **cheap**: it uses
 the managed tools only where they're irreplaceable (ElevenLabs for Georgian voice)
 and free/local tools for everything else. Per-episode cost is roughly the
 characters of dialogue you synthesize — on the order of **$0.30–0.50 for ~6 minutes**,
 versus ~€22 for ElevenLabs' automatic Dubbing Studio.
+
+> Want the opposite trade-off — one API call, cloned original voices, zero
+> setup, ~$0.33–0.50 **per minute**? That's the separate [lite project](../lite).
 
 ## What it does
 
@@ -54,19 +57,16 @@ cached paid Georgian preview per voice); an editable translation table with
 per-line character budgets; and a cost estimate that must be on screen before
 the spend button.
 
-The GUI adapts to the install. With the ML extras present (**full mode**) you
-get the manual wizard above. On a lite install (**lite mode**, no
-`requirements-ml.txt`) the **⚡ Auto-dub** tab becomes the primary path: one
-call to ElevenLabs' managed Dubbing API that transcribes, translates, clones
-the original voices, and preserves their intonation — no local ML at all, at
-~$0.33–0.50 per minute of source instead of pennies per episode. The same
-thing is available on the CLI as `python dub.py autodub episode.mp4`. The
-manual tabs still work in lite mode for episodes analyzed in Colab (copy the
-episode's `work/` folder over and hit *Refresh from disk*).
+The GUI adapts to the install. With the ML extras present (**full mode**) the
+whole wizard runs locally. Without them (**hybrid mode**, no
+`requirements-ml.txt`) the Analyze tab becomes run-it-in-Colab guidance, and
+the other tabs work as usual for episodes analyzed there — copy the episode's
+`work/` folder over and hit *Refresh from disk*. For one-call API dubbing
+with cloned voices, use the separate [lite project](../lite) instead.
 
 ## Cloud GPU (recommended) — Google Colab
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Lursmani/DL-Dub/blob/main/colab_dub.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Lursmani/DL-Dub/blob/main/full/colab_dub.ipynb)
 
 The GPU stages (Demucs, WhisperX) assume CUDA, which AMD cards can't provide on
 Windows, so the simplest path is a free Colab T4. Click the badge to open
@@ -89,7 +89,7 @@ running the same pipeline **locally** (CUDA or CPU).
 3. **A GPU is strongly recommended** for WhisperX + Demucs. CPU works but is slow;
    the pipeline auto-detects CUDA and falls back to CPU (`int8`) otherwise.
 4. Python deps — split so the heavy ML stack is **optional**:
-   - `pip install -r requirements.txt` — the lite/API-only install (a few hundred MB).
+   - `pip install -r requirements.txt` — the core install (a few hundred MB).
      Runs the GUI and every stage except `separate`/`transcribe`: perfect if you run
      Analyze in Colab and only do Voices/Translate/Dub locally.
    - `pip install -r requirements-ml.txt` — adds Demucs + WhisperX for local Analyze
@@ -113,21 +113,20 @@ cp config.example.yaml config.yaml
 
 ## Docker
 
-Two image targets mirror the dependency split:
-
 ```bash
 cp .env.example .env                  # fill in the API keys
 cp config.example.yaml config.yaml
 
-docker compose up gui                 # lite (~1.5 GB): GUI + API-only stages
-docker compose --profile ml up gui-full   # full (~5 GB): adds Demucs/WhisperX
+docker compose up gui                 # full image (~5 GB): the whole pipeline
 ```
 
-The GUI is at http://localhost:7860. `work/`, `input/`, `output/`, and
-`config.yaml` are mounted from the host, so container and native runs are fully
-interchangeable — start an episode in Colab, finish it in the lite container.
-The full image also mounts a `model-cache` volume so the ~4 GB of Whisper/
-pyannote/Demucs weights download only once.
+The GUI is at http://localhost:7861 (host port 7861 so the lite project's GUI
+can run on 7860 alongside). `work/`, `input/`, `output/`, and `config.yaml`
+are mounted from the host, so container and native runs are fully
+interchangeable — start an episode in Colab, finish it in the container. The
+image also mounts a `model-cache` volume so the ~4 GB of Whisper/pyannote/
+Demucs weights download only once. For the hybrid workflow there's a no-ML
+image too (~1.5 GB): `docker build --target core -t dub-full:core .`
 
 CLI instead of the GUI:
 
@@ -186,4 +185,3 @@ python dub.py estimate episode.mp4
   the assemble stage does.
 - Library versions (WhisperX, ElevenLabs SDK) move fast; if an import/API call breaks,
   check the installed version against the calls in `pipeline/`.
-```

@@ -1,8 +1,8 @@
 """Gradio Blocks app: a tabbed wizard over the dubbing pipeline.
 
-The layout adapts to the install (ML_AVAILABLE): full installs get the manual
-5-step wizard with Auto-dub as a bonus tab; lite (API-only) installs get
-Auto-dub as the primary path and Colab guidance in place of local Analyze.
+The layout adapts to the install (ML_AVAILABLE): full installs run the whole
+5-step wizard locally; hybrid installs (no ML extras) get Colab guidance in
+place of local Analyze and run the remaining stages here.
 
 Layout + event wiring only — logic lives in runner/state/samples/voices.
 Heavy buttons share concurrency_id="heavy" so GPU/manifest work is serialized;
@@ -17,7 +17,6 @@ from pathlib import Path
 
 import gradio as gr
 
-from pipeline import autodub as autodub_mod
 from pipeline.config import Config
 from pipeline.translate import PROVIDERS, available_providers, effective_model
 from pipeline.tts import estimate as tts_estimate
@@ -40,14 +39,13 @@ from .state import (
 MAX_SPEAKERS = 8
 HEAVY = {"concurrency_id": "heavy", "concurrency_limit": 1}
 
-# Lite (API-only) installs lack the ML extras (requirements-ml.txt); the GUI
-# reshapes itself around that: Auto-dub becomes the primary path and the
-# Analyze tab turns into run-it-in-Colab guidance.
+# Hybrid installs lack the ML extras (requirements-ml.txt); the GUI reshapes
+# itself around that: the Analyze tab turns into run-it-in-Colab guidance.
 ML_AVAILABLE = (shutil.which("demucs") is not None
                 and importlib.util.find_spec("whisperx") is not None)
 
 COLAB_URL = ("https://colab.research.google.com/github/Lursmani/DL-Dub/"
-             "blob/main/colab_dub.ipynb")
+             "blob/main/full/colab_dub.ipynb")
 
 
 def _noop(n: int) -> tuple:
@@ -113,56 +111,17 @@ def build_app() -> gr.Blocks:
             "# 🎬 Georgian Dub Studio\n"
             + ("🟢 **Full mode** — local ML installed; the whole pipeline "
                "runs here." if ML_AVAILABLE else
-               "⚡ **Lite mode (API-only)** — no local ML. Auto-dub works "
-               "entirely via API; for the manual pipeline, run Analyze in "
-               "Colab and continue here."))
+               "🔀 **Hybrid mode** — no local ML. Run Analyze in Colab, "
+               "then continue here. (For one-call API dubbing, use the "
+               "separate lite project.)"))
         with gr.Row():
             status_banner = gr.Markdown("No episode loaded.")
             refresh_btn = gr.Button("🔄 Refresh from disk", size="sm", scale=0)
 
-        # Tab order/naming reflects the install: in lite mode Auto-dub is the
-        # primary path (slot 2) and Analyze becomes Colab guidance; in full
-        # mode the manual wizard keeps its shape and Auto-dub sits at the end.
-        _labels = (
-            {"autodub": "⚡ Auto-dub (API)", "analyze": "2 · Analyze",
-             "voices": "3 · Voices", "translate": "4 · Translate & review",
-             "dub": "5 · Dub"}
-            if ML_AVAILABLE else
-            {"autodub": "2 · ⚡ Auto-dub (API)",
-             "analyze": "3 · Analyze (in Colab)", "voices": "4 · Voices",
-             "translate": "5 · Translate & review", "dub": "6 · Dub"})
-        cfg0 = Config.load(CONFIG_PATH)
-
-        def _autodub_tab() -> dict:
-            """Create the ⚡ Auto-dub tab; returns its components for wiring."""
-            with gr.Tab(_labels["autodub"], id="autodub") as tab:
-                gr.Markdown(
-                    "One call to ElevenLabs' managed **Dubbing API**: it "
-                    "transcribes, translates, **clones the original voices** "
-                    "and keeps their intonation — no speaker mapping, no local "
-                    "ML. Billed **per minute of source** (~$0.33/min "
-                    "watermarked, ~$0.50/min clean) vs. pennies per episode "
-                    "for the manual per-character pipeline.")
-                ad_video = gr.Textbox(label="Video path",
-                                      placeholder="input/episode.mp4")
-                with gr.Row():
-                    src = gr.Textbox(label="Source language",
-                                     value=cfg0.source_lang)
-                    tgt = gr.Textbox(label="Target language",
-                                     value=cfg0.target_lang)
-                    wm = gr.Checkbox(
-                        label="Watermark output ($0.33/min instead of $0.50/min)",
-                        value=True)
-                est = gr.Markdown("")
-                btn = gr.Button("🎬 Auto-dub (spends the amount above)",
-                                variant="stop")
-                log = gr.Textbox(label="Log", lines=10, max_lines=10,
-                                 autoscroll=True, interactive=False)
-                out = gr.Video(label="Auto-dubbed episode", visible=False)
-                dl = gr.DownloadButton("⬇️ Download", visible=False)
-            return {"tab": tab, "video": ad_video, "src": src, "tgt": tgt,
-                    "wm": wm, "est": est, "btn": btn, "log": log,
-                    "out": out, "dl": dl}
+        # The tab set is fixed; only the Analyze tab's label reflects whether
+        # the ML stages run here or in Colab.
+        analyze_label = ("2 · Analyze" if ML_AVAILABLE
+                         else "2 · Analyze (in Colab)")
 
         with gr.Tabs() as tabs:
             # ---------------- 1 · Setup ----------------
@@ -178,11 +137,8 @@ def build_app() -> gr.Blocks:
                 )
                 load_btn = gr.Button("Load episode", variant="primary")
 
-            if not ML_AVAILABLE:  # lite: Auto-dub is the primary path, slot 2
-                ad = _autodub_tab()
-
-            # ---------------- Analyze ----------------
-            with gr.Tab(_labels["analyze"], id="analyze",
+            # ---------------- 2 · Analyze ----------------
+            with gr.Tab(analyze_label, id="analyze",
                         interactive=False) as tab_analyze:
                 if ML_AVAILABLE:
                     gr.Markdown("Extract audio → separate dialogue from "
@@ -191,8 +147,8 @@ def build_app() -> gr.Blocks:
                                 "a T4).")
                 else:
                     gr.Markdown(
-                        "**This lite install can't run the ML analysis "
-                        "locally.** To use the manual pipeline anyway:\n"
+                        "**This install can't run the ML analysis locally.** "
+                        "To analyze anyway:\n"
                         f"1. [Run Analyze in Colab]({COLAB_URL}) (free GPU) — "
                         "it writes `work/<episode>/` with the manifest and "
                         "speaker samples.\n"
@@ -200,11 +156,10 @@ def build_app() -> gr.Blocks:
                         "app's `work/` directory.\n"
                         "3. Click **🔄 Refresh from disk** above and continue "
                         "in the Voices tab.\n\n"
-                        "Or skip analysis entirely: the **⚡ Auto-dub** tab "
-                        "dubs in one API call with cloned voices. To run "
-                        "Analyze locally instead, `pip install -r "
-                        "requirements-ml.txt` (several GB) or use the `full` "
-                        "Docker image.")
+                        "To run Analyze locally instead, `pip install -r "
+                        "requirements-ml.txt` (several GB) or use the Docker "
+                        "image. For one-call API dubbing with cloned voices, "
+                        "use the separate **lite** project.")
                 force_cb = gr.Checkbox(
                     label="Force re-transcribe (discards existing translations)",
                     value=False, visible=ML_AVAILABLE)
@@ -218,7 +173,7 @@ def build_app() -> gr.Blocks:
                     headers=["speaker", "lines", "speech (s)", "sample line"])
 
             # ---------------- 3 · Voices ----------------
-            with gr.Tab(_labels["voices"], id="voices",
+            with gr.Tab("3 · Voices", id="voices",
                         interactive=False) as tab_voices:
                 gr.Markdown(
                     "Listen to each detected speaker, then assign an ElevenLabs "
@@ -260,7 +215,7 @@ def build_app() -> gr.Blocks:
                                      variant="primary")
 
             # ---------------- 4 · Translate & review ----------------
-            with gr.Tab(_labels["translate"], id="translate",
+            with gr.Tab("4 · Translate & review", id="translate",
                         interactive=False) as tab_translate:
                 gr.Markdown(
                     "Translate Dutch → Georgian with your chosen API (costs "
@@ -290,7 +245,7 @@ def build_app() -> gr.Blocks:
                 )
 
             # ---------------- 5 · Dub ----------------
-            with gr.Tab(_labels["dub"], id="dub",
+            with gr.Tab("5 · Dub", id="dub",
                         interactive=False) as tab_dub:
                 estimate_md = gr.Markdown("")
                 dub_btn = gr.Button(
@@ -304,9 +259,6 @@ def build_app() -> gr.Blocks:
                     drive_btn = gr.Button("📁 Copy to Google Drive",
                                           visible="google.colab" in sys.modules)
                     dub_status = gr.Markdown("")
-
-            if ML_AVAILABLE:  # full: Auto-dub is an extra option at the end
-                ad = _autodub_tab()
 
         gated_tabs = [tab_analyze, tab_voices, tab_translate, tab_dub]
 
@@ -370,21 +322,16 @@ def build_app() -> gr.Blocks:
             if not video or not Path(video).exists():
                 return ("", "⚠️ Video not found — check the path.",
                         *_noop(len(gated_tabs)), gr.update(),
-                        gr.update(choices=discover_episodes()), gr.update())
+                        gr.update(choices=discover_episodes()))
             st = pipeline_status(video)
-            # Fresh episode: full mode goes to Analyze; lite mode goes to
-            # Auto-dub (its Analyze can only point at Colab).
-            fresh_tab = "analyze" if ML_AVAILABLE else "autodub"
             return (video, status_markdown(st), *gate(st),
-                    gr.update(selected=fresh_tab if not st.has_segments
+                    gr.update(selected="analyze" if not st.has_segments
                               else "voices"),
-                    gr.update(choices=discover_episodes()),
-                    gr.update(value=video))
+                    gr.update(choices=discover_episodes()))
 
         load_btn.click(
             do_load, inputs=[video_tb, resume_dd],
-            outputs=[episode, status_banner, *gated_tabs, tabs, resume_dd,
-                     ad["video"]],
+            outputs=[episode, status_banner, *gated_tabs, tabs, resume_dd],
         )
 
         def do_refresh(video: str):
@@ -620,46 +567,6 @@ def build_app() -> gr.Blocks:
             do_dub, inputs=[episode],
             outputs=[dub_log, out_video, download_btn, dub_status, *gated_tabs,
                      dub_btn],
-            **HEAVY,
-        )
-
-        # --- Auto-dub (API) ---
-        def ad_estimate(path: str, watermark: bool) -> str:
-            if not path or not Path(path).exists():
-                return ""
-            try:
-                est = autodub_mod.estimate(Path(path), watermark)
-            except Exception as e:  # noqa: BLE001 - surfaced in UI
-                return f"⚠️ Could not read duration: {e}"
-            return (f"**Estimate: {est['minutes']} min of source ≈ "
-                    f"${est['usd']}** (billed per minute of source audio)")
-
-        for _trigger in (ad["video"].blur, ad["wm"].change, ad["tab"].select):
-            _trigger(ad_estimate, inputs=[ad["video"], ad["wm"]],
-                     outputs=[ad["est"]])
-
-        def do_autodub(path: str, src: str, tgt: str, watermark: bool):
-            if not path or not Path(path).exists():
-                yield ("Enter a valid video path first (or load an episode "
-                       "in Setup).", gr.update(), gr.update())
-                return
-            video = Path(path)
-            stage = [("autodub", lambda v, w, m, c: autodub_mod.autodub(
-                v, w, m, c, source_lang=src, target_lang=tgt,
-                watermark=watermark))]
-            log = ""
-            for log in run_stages([], video, CONFIG_PATH, stages=stage):
-                yield (log, gr.update(), gr.update())
-            out = autodub_mod.output_path(
-                video, workdir_for(video),
-                (tgt or "").strip() or Config.load(CONFIG_PATH).target_lang)
-            if out.exists():
-                yield (log, gr.update(value=str(out), visible=True),
-                       gr.update(value=str(out), visible=True))
-
-        ad["btn"].click(
-            do_autodub, inputs=[ad["video"], ad["src"], ad["tgt"], ad["wm"]],
-            outputs=[ad["log"], ad["out"], ad["dl"]],
             **HEAVY,
         )
 

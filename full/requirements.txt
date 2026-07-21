@@ -1,4 +1,4 @@
-# Core (API-only) dependencies — enough for the GUI and every stage except
+# Core dependencies — enough for the GUI and every stage except
 # `separate` and `transcribe`. ffmpeg + ffprobe must be on PATH (see README).
 #
 # The local ML stages (Demucs separation, WhisperX transcription) need the
