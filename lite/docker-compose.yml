@@ -1,0 +1,21 @@
+# GUI at http://localhost:7860 after `docker compose up gui`.
+#
+# Prereqs (one-time, on the host, in this directory):
+#   cp .env.example .env                # fill in ELEVENLABS_API_KEY
+#   cp config.example.yaml config.yaml
+#
+# CLI instead of the GUI:
+#   docker compose run --rm gui python autodub.py input/episode.mp4 --yes
+
+services:
+  gui:
+    build: .
+    image: dub-lite
+    ports:
+      - "7860:7860"
+    env_file: .env
+    volumes:
+      - ./config.yaml:/app/config.yaml
+      - ./work:/app/work
+      - ./input:/app/input
+      - ./output:/app/output

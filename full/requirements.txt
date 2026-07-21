@@ -1,0 +1,29 @@
+# Core dependencies — enough for the GUI and every stage except
+# `separate` and `transcribe`. ffmpeg + ffprobe must be on PATH (see README).
+#
+# The local ML stages (Demucs separation, WhisperX transcription) need the
+# heavyweight extras in requirements-ml.txt (~several GB incl. torch). Skip
+# them if you run Analyze in Colab and only translate/dub locally.
+
+# Georgian TTS
+elevenlabs>=1.0,<2
+
+# Translation (nl -> ka) — pick ONE provider in config/GUI; all three SDKs are
+# installed so switching never needs a reinstall (only the chosen one imports).
+anthropic>=0.40.0
+openai>=1.40.0
+google-genai>=1.0.0
+
+# Audio assembly / overlay / gain
+pydub>=0.25.1
+# pydub imports stdlib `audioop`, removed in Python 3.13 — this restores it.
+audioop-lts; python_version >= "3.13"
+
+# Config + env + progress
+pyyaml>=6.0
+python-dotenv>=1.0.0
+tqdm>=4.66.0
+
+# Web GUI (gui/ package). 5.13+ needed for Dataframe static_columns.
+gradio>=5.13,<6
+pandas>=2.0

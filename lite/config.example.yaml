@@ -1,0 +1,5 @@
+# Copy to config.yaml and edit. Defaults for the CLI/GUI language fields —
+# both can be overridden per run (--source-lang/--target-lang or the GUI).
+
+source_lang: nl        # language spoken in the source video ("" = auto-detect)
+target_lang: ka        # Georgian
